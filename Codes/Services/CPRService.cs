@@ -3,46 +3,55 @@ using H5ServerSide_ToDoList.Data;
 using H5ServerSide_ToDoList.Data.Models.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 
 namespace H5ServerSide_ToDoList.Codes.Services
 {
     public class CPRService : ICPRService
     {
-        private readonly ApplicationDbContext _applicationDbContext;
+        
         private readonly DataDBContext _dataDbContext;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IHashingService _hashingService;
 
-        public CPRService(ApplicationDbContext applicationDbContext, DataDBContext dataDBContext, IHttpContextAccessor httpContextAccessor, UserManager<ApplicationUser> userManager)
+
+        public CPRService(DataDBContext dataDBContext, IHashingService hashingService, IAsymmetricEncryptionService asymmetricEncryptionService)
         {
-            _applicationDbContext = applicationDbContext;
             _dataDbContext = dataDBContext;
-            _httpContextAccessor = httpContextAccessor;
-            _userManager = userManager;
+            _hashingService = hashingService;
         }
 
-        public async Task AddCPRToUser(string CPR)
+        public async Task AddCPR(ApplicationUser user, string cpr)
         {
-            var userName = _httpContextAccessor.HttpContext.User.Identity.Name;
-            var user = await _userManager.FindByEmailAsync(userName.ToUpper());
-
             if(user != null)
             {
-                CPR tempCpr = new() { CPR_number = CPR, Name = user.UserName, Id = Guid.Parse(user.Id) };
-                _dataDbContext.CPRs.Update(tempCpr);
+                AsymmetricEncryptionService encryption = new AsymmetricEncryptionService();
+                
+                var hashedCpr = _hashingService.BCryptHash(cpr, ReturnType.String);
+
+                _dataDbContext.CPRs.Add(new CPR { CPR_number = hashedCpr, Name = user.UserName, Id = Guid.Parse(user.Id), PrivateKey = encryption._privateKey, PublicKey = encryption._publicKey });
+
                 await _dataDbContext.SaveChangesAsync();
             }
             else
             {
                 throw new NotImplementedException("User not found.");
             }
-
         }
 
-        public Task AddNameToUser(string CPR)
+        public async Task<bool> CPRExist(ApplicationUser user)
         {
-            throw new NotImplementedException();
+            return await _dataDbContext.CPRs.AnyAsync(cpr => cpr.Id == Guid.Parse(user.Id));
         }
+
+        public async Task<bool> ValidateCPR(ApplicationUser user, string CprString)
+        {
+            string hashedCpr = (await _dataDbContext.CPRs.FirstOrDefaultAsync(cpr => cpr.Id == Guid.Parse(user.Id))).CPR_number;
+
+            return _hashingService.BCryptHashValidate(CprString, hashedCpr);
+        }
+
+
     }
 }

@@ -18,6 +18,11 @@ builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 builder.Services.AddScoped<ICPRService, CPRService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IToDoService, ToDoService>();
+builder.Services.AddSingleton<IHashingService, HashingService>();
+builder.Services.AddSingleton<ISymmetricEncryptionService, SymmetricEncryptionsService>();
+builder.Services.AddSingleton<IAsymmetricEncryptionService, AsymmetricEncryptionService>();
 
 
 builder.Services.AddAuthentication(options =>

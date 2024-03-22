@@ -4,6 +4,7 @@ using H5ServerSide_ToDoList.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace H5ServerSide_ToDoList.Migrations.DataDB
 {
     [DbContext(typeof(DataDBContext))]
-    partial class DataDBContextModelSnapshot : ModelSnapshot
+    [Migration("20240321213708_testNoClue")]
+    partial class testNoClue
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -37,10 +40,6 @@ namespace H5ServerSide_ToDoList.Migrations.DataDB
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PrivateKey")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PublicKey")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

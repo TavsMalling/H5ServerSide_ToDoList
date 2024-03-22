@@ -1,0 +1,58 @@
+﻿@using H5ServerSide_ToDoList.Codes.Services
+@using H5ServerSide_ToDoList.Data
+@using Microsoft.AspNetCore.Identity
+@inject ICPRService _cprService
+@inject IHashingService _hashingService
+@inject ISymmetricEncryptionService _symmtricEncryptionService
+@inject IAsymmetricEncryptionService _asymmtricEncryptionService
+@inject IHttpContextAccessor _httpContextAccessor;
+@inject UserManager<ApplicationUser> _userManager
+
+<div>
+    <h1>@(validCpr ? "To Do" : "CPR Validation")</h1 >
+    @if(!@validCpr)
+    {
+        
+        <hr />
+        <div class="col-md-4">
+            <h2>Input CPR number</h2>
+            <hr />
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="cprNumber" class="form-control" autocomplete="CPR" aria-required="true" placeholder="010100-1005" />
+                <label for="CPR">CPR</label>
+            </div>
+            <button type="submit" @onclick="SubmitCPR" class="w-100 btn btn-lg btn-primary">Submit</button>
+        </div>
+    } 
+    else 
+    {
+        <ToDoList User="@user" />
+    }
+</div>
+
+@code {
+    private string cprNumber = string.Empty;
+
+    private bool validCpr = false;
+
+    private ApplicationUser user;
+
+    private async Task SubmitCPR()
+    {
+        var userName = _httpContextAccessor.HttpContext.User.Identity.Name;
+        user = await _userManager.FindByEmailAsync(userName.ToUpper());
+
+        // string encryptedText = _asymmtricEncryptionService.EncryptAsymmetric(cprNumber);
+        // string decryptedText = _asymmtricEncryptionService.DecryptAsymmetric(encryptedText);
+
+        var test = await _cprService.CPRExist(user);
+        if (test == false)
+        {
+            await _cprService.AddCPR(user, cprNumber);
+        }
+        else
+        {
+            validCpr = await _cprService.ValidateCPR(user, cprNumber);
+        }
+    }
+}

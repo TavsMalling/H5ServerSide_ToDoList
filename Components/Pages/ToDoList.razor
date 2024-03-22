@@ -1,0 +1,138 @@
+﻿@using H5ServerSide_ToDoList.Codes.Services
+@using H5ServerSide_ToDoList.Data
+@using H5ServerSide_ToDoList.Data.Models.Entities
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject IHttpContextAccessor _httpContextAccessor;
+@inject IRoleService _roleService;
+@inject IServiceProvider _serviceProvider;
+
+@inject DataDBContext _dataDbContext;
+@inject IToDoService _toDoService;
+@inject IAsymmetricEncryptionService _asymmetricEncryptionService;
+
+<hr />
+<div>
+    <div class="form-floating mb-3">
+        <button type="submit" @onclick="ToggleAdmin" class="w-100 btn btn-lg btn-primary">Toggle Admin</button>
+        <label>@(isAdmin ? "Admin" : "Not Admin")</label>
+    </div>
+
+    <div class="col-md-4">
+        <h2>Add To Do Item</h2>
+        <hr />
+        <div class="form-floating mb-3">
+            <InputText @bind-Value="itemName" class="form-control" autocomplete="CPR" aria-required="true" placeholder="010100-1005" />
+            <label for="Name">Name</label>
+        </div>
+        <button type="submit" @onclick="SubmitToDo" class="w-100 btn btn-lg btn-primary">Add</button>
+    
+    </div>
+    <div>
+        <hr />
+        <h2>Items</h2>
+        <table>
+            @if(@ToDoItems != null)
+            {
+                @foreach (ToDoItem item in ToDoItems)
+                {
+                    <tr>
+                        <th class="pe-4">@item.Name</th>
+                        <th><button type="submit" @onclick="() => RemoveToDo(item.Id)" class="btn btn-xs btn-primary">Remove</button></th>
+                    </tr>
+                }
+            }
+        </table>
+        @if (@isAdmin)
+        {
+            <button type="submit" @onclick="RemoveToDoList" class="w-100 btn btn-lg btn-danger">Remove All</button>
+        }
+         
+    </div>
+</div>
+
+
+
+@code {
+
+    private string itemName = string.Empty;
+
+    private List<ToDoItem> ToDoItems { get; set; }
+
+    private bool _refreshRequest;
+
+    private bool isAdmin = false;
+
+    [Parameter]
+    public ApplicationUser User { get; set; }
+
+
+    protected override async void OnParametersSet()
+    {
+        RefreshView();
+    }
+
+    private async Task SubmitToDo()
+    {
+        if(!string.IsNullOrWhiteSpace(itemName))
+        {
+            await _toDoService.AddToDoItem(itemName, Guid.Parse(User.Id));
+            RefreshView();
+        }
+    }
+
+    private async Task RemoveToDo(Guid itemId)
+    {
+
+        await _toDoService.RemoveToDoItem(itemId);
+
+        RefreshView();
+    }
+
+    private async Task RemoveToDoList()
+    {
+
+        await _toDoService.RemoveToDoItemList(Guid.Parse(User.Id));
+
+        RefreshView();
+    }
+
+    private async Task GetToDoItems()
+    {
+        var encryptedToDoList = await _toDoService.GetToDoItems(Guid.Parse(User.Id));
+        var privateKey = await _dataDbContext.CPRs.Where(cpr => cpr.Id == Guid.Parse(User.Id)).Select(x => x.PrivateKey).FirstOrDefaultAsync();
+
+        ToDoItems = encryptedToDoList
+        .Select(item => new ToDoItem { 
+            CPRId = item.CPRId, 
+            Id = item.Id, 
+            Name = _asymmetricEncryptionService.DecryptAsymmetric(item.Name, privateKey) 
+        }).ToList();
+    }
+
+    private async void RefreshView()
+    {
+        await GetAdminStatus();
+        await GetToDoItems();
+        StateHasChanged();
+    }
+
+    private async Task ToggleAdmin()
+    {
+        await _roleService.ToggleAdmin(User.Email, _serviceProvider);
+
+        RefreshView();
+    }
+
+    private async Task GetAdminStatus()
+    {
+        var status = await _roleService.IsAdmin(User.Email, _serviceProvider);
+
+        if(status != isAdmin)
+        {
+            isAdmin = status;
+        }
+    }
+}
